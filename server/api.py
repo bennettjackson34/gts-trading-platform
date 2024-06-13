@@ -367,17 +367,18 @@ def stream_data(securities):
                 if event.eventType() == blpapi.Event.SUBSCRIPTION_STATUS or \
                         event.eventType() == blpapi.Event.SUBSCRIPTION_DATA:
     
-                    if msg.hasElement("PRICE_LAST_TIME_RT") and msg.hasElement("LAST_PRICE"):
+                    if msg.hasElement("PRICE_LAST_TIME_RT") and msg.hasElement("ALL_PRICE"):
 
                         data = json.dumps({'event': 'price-update',
                                           'ticker': msg.correlationIds()[0].value(),
                                           'x': msg.getElement('PRICE_LAST_TIME_RT').getValueAsString(),
-                                          'last': msg.getElement("LAST_PRICE").getValueAsString()})
+                                          'last': msg.getElement("ALL_PRICE").getValueAsString()})
                         emit('market-data:update', data)
                         print(data)
                     elif msg.messageType() in ["SubscriptionFailure", "SubscriptionTerminated"]:
                         continue
                     else:
+                        print(msg)
                         continue
                 elif event.eventType() == blpapi.Event.SESSION_STATUS:
                     print(msg.messageType())
