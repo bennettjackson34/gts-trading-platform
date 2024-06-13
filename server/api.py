@@ -42,6 +42,7 @@ NUM_EVENTS = blpapi.Name("numEvents")
 TIME = blpapi.Name("time")
 RESPONSE_ERROR = blpapi.Name("responseError")
 SESSION_TERMINATED = blpapi.Name("SessionTerminated")
+SESSION_CONNECTION_DOWN = blpapi.Name("SessionConnectionDown")
 CATEGORY = blpapi.Name("category")
 MESSAGE = blpapi.Name("message")
 SECURITIES = ["USYC5Y30 Index"]
@@ -374,16 +375,23 @@ def stream_data(securities):
                                           'last': msg.getElement("LAST_PRICE").getValueAsString()})
                         emit('market-data:update', data)
                         print(data)
-                        # yield data
-                    else:
-                        # print(msg)
+                    elif msg.messageType() in ["SubscriptionFailure", "SubscriptionTerminated"]:
                         continue
+                    else:
+                        continue
+                elif event.eventType() == blpapi.Event.SESSION_STATUS:
+                    print(msg.messageType())
+                           
+                    if msg.messageType() in [SESSION_TERMINATED, SESSION_CONNECTION_DOWN]:
+                        emit('market-data:session-stopped',"session-stopped")
+                    
                 else:
                     print(msg)
                     # emit('market-data:update', msg)
             if event.eventType() == blpapi.Event.SUBSCRIPTION_DATA:
                 eventCount += 1
                 if eventCount >= 1000000:
+                    print("ending data stream")
                     break
                 
     except Exception as e:
@@ -443,7 +451,7 @@ def updateData(params):
                 else:
                     for msg in event:
                         if event.eventType() == blpapi.Event.SESSION_STATUS:
-                            if msg.messageType() == SESSION_TERMINATED:
+                            if msg.messageType() in [SESSION_TERMINATED, SESSION_CONNECTION_DOWN]:
                                 return False
         finally:
             pass
@@ -535,9 +543,18 @@ def handle_subscription(data):
 @socketio.on('market-data:unsubscribe')
 def handle_unsubscribe(data):
     print('unsubscribing')
-    securities = set(data['securities'])
     
     session.unsubscribe(subscriptions)
+    subscriptions.clear()
+
+@socketio.on('market-data:status')
+def handle_status_update():
+    print('checking subscription status')
+    
+    
+    print(subscriptions.size())
+    emit('market-data:status-response',subscriptions.size())
+    
     
 if __name__ == "__main__":
     socketio.run(app)
